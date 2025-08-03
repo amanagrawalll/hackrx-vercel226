@@ -50,7 +50,7 @@ def get_embeddings(texts: List[str], client: OpenAI, model="text-embedding-3-sma
 
 def generate_answer_with_gpt4(question: str, context: str, client: OpenAI):
     """Generates an answer using the provided OpenAI client and GPT-4."""
-   rompt = f"""
+    prompt = f"""
     You are an AI assistant specializing in detailed policy and contract analysis. 
     Your task is to provide a clear, brief and factual answer to the `QUESTION` based *only* on the `CONTEXT` provided.
 
