@@ -2,7 +2,7 @@
 import os
 import requests
 import numpy as np
-from fastapi import FastAPI, HTTPException, Header
+from fastapi import FastAPI, HTTPException, Header, APIRouter
 from pydantic import BaseModel
 from typing import List, Optional
 from io import BytesIO
@@ -17,8 +17,9 @@ class HackRxRequest(BaseModel):
 class HackRxResponse(BaseModel):
     answers: List[str]
 
-# --- FastAPI App ---
-app = FastAPI()
+# --- FastAPI App and Router Setup ---
+app = FastAPI(title="GPT-4 Q&A Service")
+router = APIRouter(prefix="/api/v1")
 
 # --- Helper Functions ---
 def process_document(url: str):
@@ -62,7 +63,7 @@ def generate_answer_with_gpt4(question: str, context: str, client: OpenAI):
     ANSWER:
     """
     try:
-        # Using gpt-4o as it's powerful and cost-effective
+        # Using gpt-4o as it's the latest, most powerful, and cost-effective model in the GPT-4 class.
         chat_completion = client.chat.completions.create(
             model="gpt-4o",
             messages=[{"role": "user", "content": prompt}],
@@ -75,13 +76,12 @@ def generate_answer_with_gpt4(question: str, context: str, client: OpenAI):
             raise HTTPException(status_code=401, detail="Authentication failed with OpenAI. Check your API key.")
         raise HTTPException(status_code=500, detail="Failed to generate answer from OpenAI.")
 
-# --- API Endpoint ---
-@app.post("/hackrx/run", response_model=HackRxResponse)
+# --- API Endpoint using the Router ---
+@router.post("/hackrx/run", response_model=HackRxResponse, tags=["HackRx"])
 async def run_submission(
     request: HackRxRequest,
     authorization: Optional[str] = Header(None)
 ):
-    # 1. Validate and extract the OpenAI API key from the Bearer token
     if not authorization or not authorization.startswith("Bearer "):
         raise HTTPException(status_code=401, detail="Missing or invalid Authorization header.")
     
@@ -90,7 +90,7 @@ async def run_submission(
         raise HTTPException(status_code=401, detail="Bearer token is empty.")
 
     try:
-        # 2. Initialize the OpenAI client for this specific request
+        # Initialize the OpenAI client for this specific request
         client = OpenAI(api_key=api_key)
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to initialize OpenAI client: {e}")
@@ -103,21 +103,21 @@ async def run_submission(
         if not chunks:
             raise HTTPException(status_code=400, detail="Could not process document from URL.")
 
-        # 3. Create embeddings for all chunks via OpenAI API
+        # Create embeddings for all chunks via OpenAI API
         chunk_embeddings = get_embeddings(chunks, client)
 
         all_answers = []
         for question in request.questions:
-            # 4. Create embedding for the question
+            # Create embedding for the question
             question_embedding = get_embeddings([question], client)[0]
             
-            # 5. Perform semantic search
+            # Perform semantic search
             similarities = [np.dot(question_embedding, chunk_emb) for chunk_emb in chunk_embeddings]
             top_k = 5
             top_indices = sorted(range(len(similarities)), key=lambda i: similarities[i], reverse=True)[:top_k]
             context = "\n\n---\n\n".join([chunks[i] for i in top_indices])
             
-            # 6. Generate answer with GPT-4 using the retrieved context
+            # Generate answer with GPT-4 using the retrieved context
             answer = generate_answer_with_gpt4(question, context, client)
             all_answers.append(answer)
             
@@ -128,6 +128,9 @@ async def run_submission(
         print(f"An unexpected error occurred: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
-@app.get("/")
+# Include the router in the main app
+app.include_router(router)
+
+@app.get("/", tags=["Health Check"])
 def health_check():
-    return {"status": "ok", "model": "OpenAI GPT-4"}
+    return {"status": "ok", "model_info": "This endpoint uses OpenAI for embeddings and GPT-4 for generation."}
