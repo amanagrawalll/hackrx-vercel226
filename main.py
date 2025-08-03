@@ -50,22 +50,37 @@ def get_embeddings(texts: List[str], client: OpenAI, model="text-embedding-3-sma
 
 def generate_answer_with_gpt4(question: str, context: str, client: OpenAI):
     """Generates an answer using the provided OpenAI client and GPT-4."""
-    prompt = f"""
-    You are an expert Q&A system. Your answers must be based *only* on the provided context.
-    If the answer cannot be found in the context, state that clearly and concisely. Don't mention that you have read the document, it should be a direct one liner answer.
-    
+   rompt = f"""
+    You are an AI assistant specializing in detailed policy and contract analysis. 
+    Your task is to provide a clear, brief and factual answer to the `QUESTION` based *only* on the `CONTEXT` provided.
+
+    **Instructions for your response:**
+
+    1.  **Be Subtle:** If the question can be answered in a single line, try to answer it in a single sentence only. Add lines only when necessary information about the points to answer the question aren't included in the first sentence. 
+
+    2.  **Use Complete Sentences:** Always formulate your answer in formal, well-structured sentences. Do not use bullet points unless the source text uses them.
+
+    3.  **Answer Directly:**
+       * For questions that can be answered with a "yes" or "no", you must start your response immediately with "Yes," or "No," followed by a very short explanation of 1 or 2 lines.
+       * **Crucially, do NOT use any introductory phrases or preambles.** Avoid phrases like "According to the provided document...", "The context states that...", or "Based on the text...".
+
+    4.  **Handle Missing Information:** If the answer to the `QUESTION` absolutely cannot be found in the `CONTEXT`, you must respond with the single phrase: "The information for this question is not available in the provided text."
+
     CONTEXT:
+    ---
     {context}
-    
+    ---
+
     QUESTION:
     {question}
-    
+
     ANSWER:
     """
+   
     try:
         # Using gpt-4o as it's the latest, most powerful, and cost-effective model in the GPT-4 class.
         chat_completion = client.chat.completions.create(
-            model="gpt-4o",
+            model="gpt-4",
             messages=[{"role": "user", "content": prompt}],
             temperature=0.0
         )
